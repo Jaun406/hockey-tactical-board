@@ -1,0 +1,1778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FieldTac">
+<meta name="theme-color" content="#0d1f15">
+<title>FieldTac</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root {
+  --accent: #00ff88;
+  --accent-dim: #00cc6a;
+  --accent-glow: rgba(0,255,136,0.18);
+  --team-a: #3b82f6;
+  --team-b: #ef4444;
+  --ui-bg: #0a1510;
+  --ui-panel: #111f17;
+  --ui-surface: #162a1e;
+  --ui-border: rgba(0,255,136,0.13);
+  --ui-border-hi: rgba(0,255,136,0.4);
+  --text-primary: #e8f5ee;
+  --text-muted: #4d7260;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+  --nav-h: 62px;
+  --topbar-h: 52px;
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+html, body {
+  width:100%; height:100%;
+  background: var(--ui-bg);
+  color: var(--text-primary);
+  font-family: 'Barlow Condensed', sans-serif;
+  overflow: hidden;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+/* ═══════════════════════════════
+   LAYOUT SHELL
+═══════════════════════════════ */
+#app {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding-top: var(--safe-top);
+}
+
+/* ── TOP BAR ── */
+#topbar {
+  height: var(--topbar-h);
+  background: var(--ui-panel);
+  border-bottom: 1px solid var(--ui-border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+  flex-shrink: 0;
+  z-index: 50;
+}
+
+.logo {
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: var(--accent);
+  text-transform: uppercase;
+  line-height: 1;
+}
+.logo span { color: var(--text-primary); }
+
+#play-title {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-align: center;
+  min-width: 0;
+}
+#play-title:focus { outline: none; color: var(--accent); }
+#play-title::placeholder { color: var(--text-muted); }
+
+.tb-icon-btn {
+  width: 36px; height: 36px;
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-primary);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.tb-icon-btn:active { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); transform: scale(0.94); }
+.tb-icon-btn svg { width: 16px; height: 16px; }
+
+/* ── PITCH AREA ── */
+#pitch-wrap-outer {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ui-bg);
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+
+#pitch-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+#pitch-svg {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+#draw-canvas {
+  position: absolute; inset: 0;
+  z-index: 2;
+}
+#player-layer {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* ── FLOATING TOOL RAIL (left side) ── */
+#tool-rail {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rail-btn {
+  width: 42px; height: 42px;
+  border-radius: 12px;
+  border: 1px solid var(--ui-border);
+  background: rgba(11,20,15,0.88);
+  color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: all 0.15s;
+}
+.rail-btn svg { width: 18px; height: 18px; }
+.rail-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,255,136,0.15); }
+.rail-btn:active { transform: scale(0.9); }
+
+/* ── FLOATING STYLE PILL (bottom of pitch) ── */
+#style-pill {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  gap: 4px;
+  background: rgba(11,20,15,0.9);
+  border: 1px solid var(--ui-border);
+  border-radius: 20px;
+  padding: 5px 8px;
+  backdrop-filter: blur(10px);
+  align-items: center;
+}
+.style-chip {
+  padding: 4px 10px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.style-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+
+.style-divider { width: 1px; height: 20px; background: var(--ui-border); margin: 0 2px; }
+
+.color-chip {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.color-chip.active { border-color: white; transform: scale(1.2); }
+
+/* ── RECORD FAB ── */
+#rec-fab {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 20;
+  width: 50px; height: 50px;
+  border-radius: 50%;
+  border: none;
+  background: var(--ui-surface);
+  border: 1.5px solid var(--ui-border);
+  color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: all 0.15s;
+}
+#rec-fab.recording { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,0.12); animation: pulse-rec 1.2s infinite; }
+#rec-fab.has-recording { border-color: var(--accent); color: var(--accent); }
+#rec-fab svg { width: 22px; height: 22px; }
+@keyframes pulse-rec {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+}
+
+/* ── BOTTOM NAV ── */
+#bottom-nav {
+  height: calc(var(--nav-h) + var(--safe-bot));
+  padding-bottom: var(--safe-bot);
+  background: var(--ui-panel);
+  border-top: 1px solid var(--ui-border);
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  z-index: 50;
+}
+
+.nav-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: color 0.2s;
+  position: relative;
+}
+.nav-tab svg { width: 20px; height: 20px; }
+.nav-tab.active { color: var(--accent); }
+.nav-tab.active::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 20%; right: 20%; height: 2px;
+  background: var(--accent);
+  border-radius: 0 0 3px 3px;
+}
+.nav-tab:active { color: var(--accent); transform: scale(0.95); }
+
+/* ═══════════════════════════════
+   SLIDE-UP SHEETS
+═══════════════════════════════ */
+.sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 200;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+  backdrop-filter: blur(2px);
+}
+.sheet-overlay.open { opacity: 1; pointer-events: all; }
+
+.sheet {
+  position: fixed;
+  left: 0; right: 0;
+  bottom: 0;
+  background: var(--ui-panel);
+  border-top: 1px solid var(--ui-border);
+  border-radius: 18px 18px 0 0;
+  z-index: 201;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: var(--safe-bot);
+}
+.sheet.open { transform: translateY(0); }
+
+.sheet-handle {
+  width: 36px; height: 4px;
+  background: var(--ui-border);
+  border-radius: 2px;
+  margin: 10px auto 0;
+  flex-shrink: 0;
+}
+.sheet-title {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 12px 18px 8px;
+  flex-shrink: 0;
+}
+.sheet-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 16px 16px;
+  overscroll-behavior: contain;
+}
+.sheet-body::-webkit-scrollbar { display: none; }
+
+/* ── Sheet sections ── */
+.s-section { margin-bottom: 18px; }
+.s-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+/* Teams in sheet */
+.team-row-sheet {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+.team-badge-s { width: 10px; height: 28px; border-radius: 3px; flex-shrink: 0; }
+.team-label-s { flex: 1; font-size: 14px; font-weight: 700; }
+.count-ctrl-s { display: flex; align-items: center; gap: 6px; }
+.cnt-btn-s {
+  width: 30px; height: 30px;
+  border: 1px solid var(--ui-border); border-radius: 8px;
+  background: var(--ui-surface); color: var(--text-primary);
+  font-size: 18px; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.cnt-btn-s:active { border-color: var(--accent); color: var(--accent); transform: scale(0.92); }
+.cnt-num { font-size: 16px; font-weight: 800; color: var(--accent); min-width: 24px; text-align: center; }
+
+/* Player list in sheet */
+.pl-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(0,255,136,0.06);
+}
+.pl-dot-s { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.pl-num-s { font-size: 12px; font-weight: 800; color: var(--text-muted); min-width: 24px; }
+.pl-name-s {
+  flex: 1;
+  background: transparent; border: none;
+  border-bottom: 1px solid transparent;
+  color: var(--text-primary);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 14px; font-weight: 600;
+  padding: 2px 0;
+  transition: border-color 0.2s;
+}
+.pl-name-s:focus { outline: none; border-bottom-color: var(--accent); }
+
+/* View pills */
+.view-pills {
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.view-pill {
+  padding: 8px 16px;
+  border: 1px solid var(--ui-border);
+  border-radius: 20px;
+  background: var(--ui-bg);
+  color: var(--text-muted);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 12px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; cursor: pointer;
+  transition: all 0.15s;
+}
+.view-pill.active { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+
+/* Notes */
+#notes-ta {
+  width: 100%;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-family: 'Barlow', sans-serif;
+  font-size: 13px; line-height: 1.6;
+  padding: 10px 12px;
+  resize: none;
+  height: 100px;
+  touch-action: auto;
+}
+#notes-ta:focus { outline: none; border-color: var(--accent); }
+#notes-ta::placeholder { color: var(--text-muted); }
+
+/* Action buttons in sheet */
+.sheet-action {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 13px;
+  border: 1px solid var(--ui-border);
+  border-radius: 12px;
+  background: var(--ui-bg);
+  color: var(--text-primary);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: 8px;
+}
+.sheet-action:active { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); transform: scale(0.98); }
+.sheet-action svg { width: 16px; height: 16px; }
+.sheet-action.primary { border-color: var(--accent); color: var(--ui-bg); background: var(--accent); }
+.sheet-action.primary:active { background: var(--accent-dim); }
+.sheet-action.danger { border-color: rgba(239,68,68,0.3); color: #ef4444; }
+.sheet-action.danger:active { background: rgba(239,68,68,0.1); }
+
+/* ── RECORDING SHEET special ── */
+.rec-display {
+  text-align: center;
+  padding: 16px 0 8px;
+}
+.rec-time-big {
+  font-size: 48px; font-weight: 900; letter-spacing: 4px;
+  color: var(--text-primary); font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.rec-state-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--text-muted);
+  margin-top: 4px;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.rec-dot-s { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); }
+.rec-dot-s.rec { background: #ef4444; animation: blink 1s infinite; }
+.rec-dot-s.play { background: var(--accent); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+#scrubber-s {
+  width: 100%; accent-color: var(--accent);
+  height: 4px; margin: 8px 0 4px;
+}
+.scrub-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); }
+
+/* Keyframe strip */
+#kf-strip {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  margin-top: 6px;
+}
+.kf-cell {
+  aspect-ratio: 16/9;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  overflow: hidden; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: var(--text-muted); font-weight: 700;
+  transition: border-color 0.2s;
+}
+.kf-cell:active { border-color: var(--accent); }
+.kf-cell img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ═══════════════════════════════
+   PLAYER STUDS
+═══════════════════════════════ */
+.player-stud {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  pointer-events: all;
+  z-index: 10;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+.stud-circle {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 900;
+  color: white;
+  border: 2px solid rgba(255,255,255,0.55);
+  transition: transform 0.12s, box-shadow 0.15s;
+  font-family: 'Barlow Condensed', sans-serif;
+}
+.player-stud.team-a .stud-circle { background: var(--team-a); }
+.player-stud.team-b .stud-circle { background: var(--team-b); }
+.player-stud.selected .stud-circle {
+  box-shadow: 0 0 0 3px white, 0 0 14px var(--accent);
+  transform: scale(1.15);
+}
+.stud-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
+  color: white; text-shadow: 0 1px 4px rgba(0,0,0,0.95);
+  white-space: nowrap; max-width: 60px; overflow: hidden; text-overflow: ellipsis;
+  line-height: 1; pointer-events: none;
+}
+
+/* ═══════════════════════════════
+   MODALS
+═══════════════════════════════ */
+.modal-wrap {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 300;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+.modal-wrap.hidden { display: none; }
+.modal-box {
+  background: var(--ui-panel);
+  border: 1px solid var(--ui-border);
+  border-radius: 16px;
+  padding: 22px;
+  width: 100%;
+  max-width: 360px;
+}
+.modal-title { font-size: 16px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+.modal-sub { font-size: 12px; color: var(--text-muted); font-family: 'Barlow', sans-serif; line-height: 1.5; margin-bottom: 14px; }
+.modal-prog { background: var(--ui-bg); border-radius: 4px; height: 5px; overflow: hidden; }
+.modal-prog-bar { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.3s; width: 0%; }
+.modal-prog-text { font-size: 11px; color: var(--text-muted); margin-top: 6px; font-family: 'Barlow', sans-serif; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+.modal-btn {
+  padding: 9px 22px;
+  border: 1px solid var(--ui-border); border-radius: 8px;
+  background: transparent; color: var(--text-primary);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  cursor: pointer; transition: all 0.15s;
+}
+.modal-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--ui-bg); }
+
+/* ── INSTALL PROMPT ── */
+#install-bar {
+  position: fixed;
+  bottom: calc(var(--nav-h) + var(--safe-bot) + 8px);
+  left: 12px; right: 12px;
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border-hi);
+  border-radius: 14px;
+  padding: 12px 16px;
+  display: flex; align-items: center; gap: 10px;
+  z-index: 100;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+  animation: slideUp 0.4s ease;
+}
+#install-bar.hidden { display: none; }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.install-icon { font-size: 28px; }
+.install-text { flex: 1; }
+.install-title { font-size: 13px; font-weight: 800; letter-spacing: 1px; }
+.install-sub { font-size: 11px; color: var(--text-muted); font-family: 'Barlow', sans-serif; }
+.install-btns { display: flex; gap: 6px; }
+.install-btn {
+  padding: 7px 14px;
+  border-radius: 8px; border: 1px solid var(--ui-border);
+  background: transparent; color: var(--text-primary);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.install-btn.go { background: var(--accent); border-color: var(--accent); color: var(--ui-bg); }
+
+/* ── LOADING ── */
+#loading {
+  position: fixed; inset: 0;
+  background: var(--ui-bg);
+  z-index: 1000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px;
+  transition: opacity 0.5s;
+}
+#loading.fade { opacity: 0; pointer-events: none; }
+.load-logo { font-size: 32px; font-weight: 900; letter-spacing: 4px; color: var(--accent); }
+.load-sub { font-size: 11px; letter-spacing: 3px; color: var(--text-muted); text-transform: uppercase; }
+.load-bar { width: 160px; height: 2px; background: var(--ui-border); border-radius: 2px; overflow: hidden; }
+.load-bar-inner { height: 100%; background: var(--accent); animation: loadanim 1.5s ease-in-out infinite; }
+@keyframes loadanim { 0%{width:0;margin-left:0} 50%{width:100%;margin-left:0} 100%{width:0;margin-left:100%} }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed;
+  top: calc(var(--safe-top) + 60px);
+  left: 50%; transform: translateX(-50%) translateY(-10px);
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: 20px;
+  padding: 8px 18px;
+  font-size: 12px; font-weight: 700; letter-spacing: 1px;
+  color: var(--accent);
+  z-index: 500;
+  opacity: 0;
+  transition: all 0.25s;
+  pointer-events: none;
+  white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Stroke width compact */
+.stroke-w-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.stroke-w-label { font-size: 11px; color: var(--text-muted); font-weight: 600; min-width: 36px; }
+input[type=range] { flex: 1; accent-color: var(--accent); height: 4px; }
+.stroke-w-val { font-size: 12px; color: var(--accent); font-weight: 700; min-width: 18px; text-align: right; }
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loading">
+  <div class="load-logo">FIELDTAC</div>
+  <div class="load-sub">Hockey Tactical Suite</div>
+  <div class="load-bar"><div class="load-bar-inner"></div></div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- App Shell -->
+<div id="app">
+
+  <!-- Top Bar -->
+  <div id="topbar">
+    <div class="logo">Field<span>Tac</span></div>
+    <input type="text" id="play-title" placeholder="Play name…" value="Corner Set-Play Alpha">
+    <button class="tb-icon-btn" id="btn-undo" title="Undo last stroke">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 2.2-5.8"/></svg>
+    </button>
+    <button class="tb-icon-btn" id="btn-clear" title="Clear all">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16l11-11 6 6-2.5 2.5"/><path d="m6 17 3.5-3.5"/></svg>
+    </button>
+  </div>
+
+  <!-- Pitch -->
+  <div id="pitch-wrap-outer">
+    <div id="pitch-wrapper">
+      <svg id="pitch-svg" viewBox="0 0 914 550" xmlns="http://www.w3.org/2000/svg"></svg>
+      <canvas id="draw-canvas"></canvas>
+      <div id="player-layer"></div>
+    </div>
+
+    <!-- Floating tool rail -->
+    <div id="tool-rail">
+      <button class="rail-btn" data-tool="select" title="Select / Move">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
+      </button>
+      <button class="rail-btn active" data-tool="line" title="Draw line">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/></svg>
+      </button>
+      <button class="rail-btn" data-tool="arrow" title="Arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </button>
+      <button class="rail-btn" data-tool="eraser" title="Eraser">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16l11-11 6 6-2.5 2.5"/><path d="m6 17 3.5-3.5"/></svg>
+      </button>
+    </div>
+
+    <!-- Style pill -->
+    <div id="style-pill">
+      <button class="style-chip active" data-style="solid">Solid</button>
+      <button class="style-chip" data-style="dashed">Run</button>
+      <button class="style-chip" data-style="dotted">Ball</button>
+      <div class="style-divider"></div>
+      <div class="color-chip active" style="background:#ffffff" data-color="#ffffff"></div>
+      <div class="color-chip" style="background:#00ff88" data-color="#00ff88"></div>
+      <div class="color-chip" style="background:#3b82f6" data-color="#3b82f6"></div>
+      <div class="color-chip" style="background:#ef4444" data-color="#ef4444"></div>
+      <div class="color-chip" style="background:#f59e0b" data-color="#f59e0b"></div>
+    </div>
+
+    <!-- Record FAB -->
+    <button id="rec-fab" title="Record / Play">
+      <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="7"/></svg>
+    </button>
+  </div>
+
+  <!-- Bottom Nav -->
+  <div id="bottom-nav">
+    <button class="nav-tab active" data-sheet="pitch-sheet">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+      Pitch
+    </button>
+    <button class="nav-tab" data-sheet="teams-sheet">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="19" cy="7" r="2"/><path d="M21 21v-1a2 2 0 0 0-2-2h-1"/></svg>
+      Teams
+    </button>
+    <button class="nav-tab" data-sheet="rec-sheet">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
+      Record
+    </button>
+    <button class="nav-tab" data-sheet="export-sheet">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export
+    </button>
+    <button class="nav-tab" data-sheet="notes-sheet">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Notes
+    </button>
+  </div>
+</div>
+
+<!-- ═══════ SHEETS ═══════ -->
+
+<!-- Overlay -->
+<div class="sheet-overlay" id="sheet-overlay"></div>
+
+<!-- PITCH SHEET -->
+<div class="sheet" id="pitch-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Pitch View</div>
+  <div class="sheet-body">
+    <div class="s-section">
+      <div class="s-label">View Mode</div>
+      <div class="view-pills">
+        <button class="view-pill active" data-view="full">Full Pitch</button>
+        <button class="view-pill" data-view="attack">Attack Half</button>
+        <button class="view-pill" data-view="defence">Defence Half</button>
+      </div>
+    </div>
+    <div class="s-section">
+      <div class="s-label">Stroke Width</div>
+      <div class="stroke-w-row">
+        <span class="stroke-w-label">Width</span>
+        <input type="range" id="stroke-width" min="1" max="10" value="2">
+        <span class="stroke-w-val" id="stroke-val">2</span>
+      </div>
+    </div>
+    <div class="s-section">
+      <button class="sheet-action danger" id="btn-reset">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        Reset Player Positions
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- TEAMS SHEET -->
+<div class="sheet" id="teams-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Teams & Players</div>
+  <div class="sheet-body">
+    <div class="s-section">
+      <div class="team-row-sheet">
+        <div class="team-badge-s" style="background:var(--team-a)"></div>
+        <div class="team-label-s" style="color:var(--team-a)">Team A</div>
+        <div class="count-ctrl-s">
+          <button class="cnt-btn-s" data-team="a" data-dir="-1">−</button>
+          <span class="cnt-num" id="count-a">11</span>
+          <button class="cnt-btn-s" data-team="a" data-dir="1">+</button>
+        </div>
+      </div>
+      <div class="team-row-sheet">
+        <div class="team-badge-s" style="background:var(--team-b)"></div>
+        <div class="team-label-s" style="color:var(--team-b)">Team B</div>
+        <div class="count-ctrl-s">
+          <button class="cnt-btn-s" data-team="b" data-dir="-1">−</button>
+          <span class="cnt-num" id="count-b">11</span>
+          <button class="cnt-btn-s" data-team="b" data-dir="1">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="s-section">
+      <div class="s-label">Roster</div>
+      <div id="player-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- RECORD SHEET -->
+<div class="sheet" id="rec-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Recording</div>
+  <div class="sheet-body">
+    <div class="rec-display">
+      <div class="rec-time-big" id="rec-time">00:00</div>
+      <div class="rec-state-label">
+        <div class="rec-dot-s" id="rec-dot"></div>
+        <span id="rec-label">Idle</span>
+      </div>
+    </div>
+    <div style="margin-top:12px;">
+      <button class="sheet-action" id="btn-record">
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="7"/></svg>
+        Start Recording
+      </button>
+      <button class="sheet-action" id="btn-play" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Play Back
+      </button>
+      <button class="sheet-action danger" id="btn-stop" disabled>
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>
+        Stop
+      </button>
+    </div>
+    <div id="scrubber-wrap" style="display:none; margin-top:8px;">
+      <input type="range" id="scrubber" min="0" max="100" value="0" style="width:100%">
+      <div class="scrub-labels"><span id="scrub-cur">0:00</span><span id="scrub-total">0:00</span></div>
+    </div>
+    <div class="s-section" style="margin-top:12px;">
+      <div class="s-label">Key Moments</div>
+      <div id="kf-strip">
+        <div class="kf-cell">—</div><div class="kf-cell">—</div><div class="kf-cell">—</div>
+        <div class="kf-cell">—</div><div class="kf-cell">—</div><div class="kf-cell">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT SHEET -->
+<div class="sheet" id="export-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Export</div>
+  <div class="sheet-body">
+    <button class="sheet-action primary" id="btn-export-pdf">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Export Coach's PDF
+    </button>
+    <button class="sheet-action" id="btn-export-video">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+      Export Playback Video
+    </button>
+    <button class="sheet-action" id="btn-share-image">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      Share Pitch Image
+    </button>
+  </div>
+</div>
+
+<!-- NOTES SHEET -->
+<div class="sheet" id="notes-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Tactical Notes</div>
+  <div class="sheet-body">
+    <textarea id="notes-ta" placeholder="Enter coaching cues, set-play details, player instructions…"></textarea>
+  </div>
+</div>
+
+<!-- Export progress modal -->
+<div class="modal-wrap hidden" id="exp-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="exp-title">Exporting</div>
+    <div class="modal-sub" id="exp-sub">Please wait…</div>
+    <div class="modal-prog"><div class="modal-prog-bar" id="exp-bar"></div></div>
+    <div class="modal-prog-text" id="exp-txt">Initialising…</div>
+    <div class="modal-actions" id="exp-actions" style="display:none">
+      <button class="modal-btn primary" id="exp-close">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- PWA Install banner -->
+<div id="install-bar" class="hidden">
+  <div class="install-icon">🏑</div>
+  <div class="install-text">
+    <div class="install-title">Add to Home Screen</div>
+    <div class="install-sub">Install FieldTac for offline use</div>
+  </div>
+  <div class="install-btns">
+    <button class="install-btn" id="install-dismiss">Later</button>
+    <button class="install-btn go" id="install-go">Install</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  CONSTANTS
+// ══════════════════════════════════════════════
+const FIH = { W: 914, H: 550 };
+
+const DEFAULT_POSITIONS_A = [
+  {x:8,y:50},{x:20,y:18},{x:20,y:38},{x:20,y:62},{x:20,y:82},
+  {x:40,y:22},{x:40,y:50},{x:40,y:78},{x:60,y:28},{x:60,y:50},{x:60,y:72},
+  {x:50,y:12},{x:50,y:88},{x:30,y:50},{x:70,y:50},{x:45,y:50}
+];
+const DEFAULT_POSITIONS_B = [
+  {x:92,y:50},{x:80,y:18},{x:80,y:38},{x:80,y:62},{x:80,y:82},
+  {x:60,y:22},{x:60,y:50},{x:60,y:78},{x:40,y:28},{x:40,y:50},{x:40,y:72},
+  {x:50,y:12},{x:50,y:88},{x:70,y:50},{x:30,y:50},{x:55,y:50}
+];
+const POS_NAMES = ['GK','RB','CB','CB','LB','RM','CM','LM','RF','CF','LF','SUB1','SUB2','SUB3','SUB4','SUB5'];
+
+// ══════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════
+const S = {
+  view: 'full', tool: 'line', lineStyle: 'solid', strokeColor: '#ffffff', strokeWidth: 2,
+  players: { a: [], b: [] }, counts: { a: 11, b: 11 }, selected: null,
+  drawing: false, strokes: [], currentStroke: null,
+  recording: false, playing: false, frames: [], playFrame: 0,
+  recTimer: null, playTimer: null, recStart: 0, recElapsed: 0,
+  viewClip: { x1:0, y1:0, x2:FIH.W, y2:FIH.H },
+  pitchPx: { w:0, h:0 },
+};
+
+// ══════════════════════════════════════════════
+//  PITCH RENDERING
+// ══════════════════════════════════════════════
+const svg = document.getElementById('pitch-svg');
+
+function buildPitch() {
+  const vw = FIH.W, vh = FIH.H;
+  let html = `<rect width="${vw}" height="${vh}" fill="#0d1f15"/>`;
+  for (let i = 0; i < 10; i++) {
+    if (i%2===0) html += `<rect x="${i*(vw/10)}" y="0" width="${vw/10}" height="${vh}" fill="#0f2318"/>`;
+  }
+  const lc = 'rgba(255,255,255,0.82)', lw = 4;
+  const R = (x,y,w,h,e='') => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${lc}" stroke-width="${lw}" ${e}/>`;
+  const L = (x1,y1,x2,y2,e='') => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${lc}" stroke-width="${lw}" ${e}/>`;
+  const C = (cx,cy,r,e='') => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${lc}" stroke-width="${lw}" ${e}/>`;
+  html += R(0,0,vw,vh);
+  html += L(vw/2,0,vw/2,vh);
+  html += C(vw/2,vh/2,30);
+  html += `<circle cx="${vw/2}" cy="${vh/2}" r="4" fill="${lc}"/>`;
+  const gH = 183, gD = 21, gY = vh/2-gH;
+  html += R(0-gD, gY, gD, gH*2);
+  html += R(vw, gY, gD, gH*2);
+  const DR = 146, DS = gH;
+  html += `<path d="M0,${vh/2-DS} A${DR},${DR} 0 0,1 0,${vh/2+DS}" fill="none" stroke="${lc}" stroke-width="${lw}"/>`;
+  html += `<path d="M${vw},${vh/2-DS} A${DR},${DR} 0 0,0 ${vw},${vh/2+DS}" fill="none" stroke="${lc}" stroke-width="${lw}"/>`;
+  const m23 = 229;
+  html += L(m23,0,m23,vh,`stroke-dasharray="8,6"`);
+  html += L(vw-m23,0,vw-m23,vh,`stroke-dasharray="8,6"`);
+  html += `<circle cx="64" cy="${vh/2}" r="5" fill="${lc}"/>`;
+  html += `<circle cx="${vw-64}" cy="${vh/2}" r="5" fill="${lc}"/>`;
+  const cr=15;
+  html+=`<path d="M${cr} 0 A${cr} ${cr} 0 0 1 0 ${cr}" fill="none" stroke="${lc}" stroke-width="${lw}"/>`;
+  html+=`<path d="M${vw-cr} 0 A${cr} ${cr} 0 0 0 ${vw} ${cr}" fill="none" stroke="${lc}" stroke-width="${lw}"/>`;
+  html+=`<path d="M 0 ${vh-cr} A${cr} ${cr} 0 0 0 ${cr} ${vh}" fill="none" stroke="${lc}" stroke-width="${lw}"/>`;
+  html+=`<path d="M${vw} ${vh-cr} A${cr} ${cr} 0 0 1 ${vw-cr} ${vh}" fill="none" stroke="${lc}" stroke-width="${lw}"/>`;
+  html += `<circle cx="${vw/2}" cy="${vh/2}" r="6" fill="white" opacity="0.9"/>`;
+  svg.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════
+//  LAYOUT
+// ══════════════════════════════════════════════
+const pitchWrapper = document.getElementById('pitch-wrapper');
+const canvas = document.getElementById('draw-canvas');
+const playerLayer = document.getElementById('player-layer');
+const ctx = canvas.getContext('2d');
+
+function getViewClip() {
+  if (S.view==='attack')  return {x1:FIH.W/2,y1:0,x2:FIH.W,y2:FIH.H};
+  if (S.view==='defence') return {x1:0,y1:0,x2:FIH.W/2,y2:FIH.H};
+  return {x1:0,y1:0,x2:FIH.W,y2:FIH.H};
+}
+
+function resize() {
+  const outer = document.getElementById('pitch-wrap-outer');
+  const cw = outer.clientWidth - 20;
+  const ch = outer.clientHeight - 20;
+  const vc = getViewClip();
+  S.viewClip = vc;
+  const vw = vc.x2-vc.x1, vh = vc.y2-vc.y1;
+  const aspect = vw/vh;
+  let pw, ph;
+  if (cw/ch > aspect) { ph=ch; pw=ph*aspect; } else { pw=cw; ph=pw/aspect; }
+  pw=Math.floor(pw); ph=Math.floor(ph);
+  S.pitchPx = {w:pw,h:ph};
+  pitchWrapper.style.width = pw+'px';
+  pitchWrapper.style.height = ph+'px';
+  svg.setAttribute('viewBox',`${vc.x1} ${vc.y1} ${vw} ${vh}`);
+  canvas.width=pw; canvas.height=ph;
+  redrawCanvas();
+  updateAllPos();
+}
+
+// ══════════════════════════════════════════════
+//  COORD MAPPING
+// ══════════════════════════════════════════════
+function pctToPx(xp,yp) {
+  const {x1,y1,x2,y2} = S.viewClip;
+  const vw=x2-x1, vh=y2-y1;
+  return {
+    x: ((xp/100*FIH.W - x1)/vw) * S.pitchPx.w,
+    y: ((yp/100*FIH.H - y1)/vh) * S.pitchPx.h
+  };
+}
+function pxToPct(px,py) {
+  const {x1,y1,x2,y2} = S.viewClip;
+  const vw=x2-x1, vh=y2-y1;
+  return {
+    x: ((px/S.pitchPx.w)*vw + x1) / FIH.W * 100,
+    y: ((py/S.pitchPx.h)*vh + y1) / FIH.H * 100
+  };
+}
+
+// ══════════════════════════════════════════════
+//  CANVAS DRAWING
+// ══════════════════════════════════════════════
+function applyStyle(stroke) {
+  ctx.strokeStyle = stroke.color;
+  ctx.lineWidth = stroke.width;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  if (stroke.style==='dashed') ctx.setLineDash([10,5]);
+  else if (stroke.style==='dotted') ctx.setLineDash([3,5]);
+  else ctx.setLineDash([]);
+}
+
+function drawArrow(x1,y1,x2,y2,color,w) {
+  const ang = Math.atan2(y2-y1,x2-x1);
+  const len = 14+w*1.8;
+  ctx.fillStyle=color;
+  ctx.beginPath();
+  ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-len*Math.cos(ang-0.4), y2-len*Math.sin(ang-0.4));
+  ctx.lineTo(x2-len*Math.cos(ang+0.4), y2-len*Math.sin(ang+0.4));
+  ctx.closePath(); ctx.fill();
+}
+
+function drawStroke(s) {
+  if (!s.points||s.points.length<2) return;
+  applyStyle(s);
+  ctx.beginPath();
+  const p0=pctToPx(s.points[0].x,s.points[0].y);
+  ctx.moveTo(p0.x,p0.y);
+  for (let i=1;i<s.points.length;i++) {
+    const p=pctToPx(s.points[i].x,s.points[i].y);
+    ctx.lineTo(p.x,p.y);
+  }
+  ctx.stroke();
+  if (s.tool==='arrow'&&s.points.length>=2) {
+    const n=s.points.length;
+    const pa=pctToPx(s.points[n-2].x,s.points[n-2].y);
+    const pb=pctToPx(s.points[n-1].x,s.points[n-1].y);
+    ctx.setLineDash([]);
+    drawArrow(pa.x,pa.y,pb.x,pb.y,s.color,s.width);
+  }
+}
+
+function redrawCanvas() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  S.strokes.forEach(drawStroke);
+  if (S.currentStroke) drawStroke(S.currentStroke);
+}
+
+// ── Touch / Mouse drawing ──
+function getPos(e) {
+  const r = canvas.getBoundingClientRect();
+  const src = e.touches ? e.touches[0] : e;
+  return { x: src.clientX-r.left, y: src.clientY-r.top };
+}
+
+function onDrawStart(e) {
+  if (S.tool==='select') return;
+  e.preventDefault();
+  const pos = getPos(e);
+  if (S.tool==='eraser') { eraseAt(pos); return; }
+  S.drawing = true;
+  const pct = pxToPct(pos.x,pos.y);
+  S.currentStroke = { tool:S.tool, style:S.lineStyle, color:S.strokeColor, width:S.strokeWidth, points:[pct] };
+}
+function onDrawMove(e) {
+  if (!S.drawing||!S.currentStroke) return;
+  e.preventDefault();
+  const pos = getPos(e);
+  if (S.tool==='eraser') { eraseAt(pos); return; }
+  const pct = pxToPct(pos.x,pos.y);
+  S.currentStroke.points.push(pct);
+  redrawCanvas();
+}
+function onDrawEnd(e) {
+  if (!S.drawing||!S.currentStroke) return;
+  S.drawing=false;
+  if (S.currentStroke.points.length>=2) S.strokes.push(S.currentStroke);
+  S.currentStroke=null;
+  redrawCanvas();
+}
+
+function eraseAt(pos) {
+  const er=24;
+  S.strokes = S.strokes.filter(s => !s.points.some(pt => {
+    const p=pctToPx(pt.x,pt.y);
+    return Math.hypot(p.x-pos.x,p.y-pos.y)<er;
+  }));
+  redrawCanvas();
+}
+
+canvas.addEventListener('mousedown', onDrawStart);
+canvas.addEventListener('mousemove', onDrawMove);
+canvas.addEventListener('mouseup', onDrawEnd);
+canvas.addEventListener('mouseleave', onDrawEnd);
+canvas.addEventListener('touchstart', onDrawStart, {passive:false});
+canvas.addEventListener('touchmove', onDrawMove, {passive:false});
+canvas.addEventListener('touchend', onDrawEnd);
+
+// ══════════════════════════════════════════════
+//  PLAYERS
+// ══════════════════════════════════════════════
+function createPlayers() {
+  const mk = (team,count,defs,ex) => {
+    const out=[];
+    for (let i=0;i<count;i++) {
+      const e=ex[i]||{};
+      out.push({ id:`${team}-${i+1}`, team, num:i+1,
+        name: e.name||(POS_NAMES[i]||`P${i+1}`),
+        x: e.x||(defs[i]||{x:50}).x,
+        y: e.y||(defs[i]||{y:50}).y });
+    }
+    return out;
+  };
+  S.players.a = mk('a',S.counts.a,DEFAULT_POSITIONS_A,S.players.a);
+  S.players.b = mk('b',S.counts.b,DEFAULT_POSITIONS_B,S.players.b);
+  renderStuds();
+  renderRoster();
+}
+
+function renderStuds() {
+  playerLayer.innerHTML='';
+  [...S.players.a,...S.players.b].forEach(p => {
+    const el=document.createElement('div');
+    el.className=`player-stud team-${p.team}`;
+    el.dataset.id=p.id;
+    el.innerHTML=`<div class="stud-circle">${p.num}</div><div class="stud-label">${p.name}</div>`;
+    playerLayer.appendChild(el);
+    placeStud(el,p.x,p.y);
+    makeDraggable(el,p);
+    el.addEventListener('click',e=>{ e.stopPropagation(); selectP(p.id); });
+  });
+}
+
+function placeStud(el,xp,yp) {
+  const px=pctToPx(xp,yp);
+  el.style.left=px.x+'px'; el.style.top=px.y+'px';
+}
+function updateAllPos() {
+  [...S.players.a,...S.players.b].forEach(p => {
+    const el=playerLayer.querySelector(`[data-id="${p.id}"]`);
+    if(el) placeStud(el,p.x,p.y);
+  });
+}
+
+function makeDraggable(el, pd) {
+  let active=false, startX, startY;
+  
+  const start = (e) => {
+    if (S.tool!=='select') return;
+    e.preventDefault(); e.stopPropagation();
+    active=true;
+    const t=e.touches?e.touches[0]:e;
+    const r=pitchWrapper.getBoundingClientRect();
+    startX=t.clientX-r.left; startY=t.clientY-r.top;
+    el.style.zIndex=100;
+    gsap.to(el.querySelector('.stud-circle'),{scale:1.2,duration:0.1});
+  };
+  const move = (e) => {
+    if (!active) return; e.preventDefault();
+    const t=e.touches?e.touches[0]:e;
+    const r=pitchWrapper.getBoundingClientRect();
+    const cx=t.clientX-r.left, cy=t.clientY-r.top;
+    const pct=pxToPct(cx,cy);
+    pd.x=Math.max(0,Math.min(100,pct.x));
+    pd.y=Math.max(0,Math.min(100,pct.y));
+    placeStud(el,pd.x,pd.y);
+  };
+  const end = () => {
+    if (!active) return; active=false;
+    el.style.zIndex=10;
+    gsap.to(el.querySelector('.stud-circle'),{scale:1,duration:0.1});
+  };
+  el.addEventListener('mousedown',start);
+  document.addEventListener('mousemove',move);
+  document.addEventListener('mouseup',end);
+  el.addEventListener('touchstart',start,{passive:false});
+  document.addEventListener('touchmove',move,{passive:false});
+  document.addEventListener('touchend',end);
+}
+
+function selectP(id) {
+  S.selected = S.selected===id ? null : id;
+  playerLayer.querySelectorAll('.player-stud').forEach(el => {
+    el.classList.toggle('selected', el.dataset.id===S.selected);
+  });
+}
+
+function updateCursor() {
+  const isSelect = S.tool==='select';
+  playerLayer.style.pointerEvents = isSelect?'all':'none';
+  canvas.style.cursor = S.tool==='eraser'?'cell': isSelect?'default':'crosshair';
+  canvas.style.pointerEvents = isSelect?'none':'all';
+}
+
+function renderRoster() {
+  const list=document.getElementById('player-list');
+  list.innerHTML='';
+  [...S.players.a,...S.players.b].forEach(p => {
+    const div=document.createElement('div');
+    div.className='pl-item';
+    div.innerHTML=`
+      <div class="pl-dot-s" style="background:var(--team-${p.team})"></div>
+      <div class="pl-num-s">#${p.num}</div>
+      <input class="pl-name-s" value="${p.name}" placeholder="Name…" data-id="${p.id}">
+    `;
+    list.appendChild(div);
+  });
+  list.querySelectorAll('.pl-name-s').forEach(inp => {
+    inp.addEventListener('change', e => {
+      const id=e.target.dataset.id;
+      const [tm]=id.split('-');
+      const pl=S.players[tm].find(p=>p.id===id);
+      if (pl) {
+        pl.name=e.target.value;
+        const el=playerLayer.querySelector(`[data-id="${id}"]`);
+        if (el) el.querySelector('.stud-label').textContent=e.target.value;
+      }
+    });
+  });
+}
+
+// ══════════════════════════════════════════════
+//  RECORDING
+// ══════════════════════════════════════════════
+function capture() {
+  return {
+    t: Date.now(),
+    a: S.players.a.map(p=>({...p})),
+    b: S.players.b.map(p=>({...p})),
+    strokes: JSON.parse(JSON.stringify(S.strokes))
+  };
+}
+
+function startRec() {
+  S.frames=[]; S.recording=true; S.recStart=Date.now();
+  document.getElementById('rec-dot').className='rec-dot-s rec';
+  document.getElementById('rec-label').textContent='Recording';
+  document.getElementById('btn-record').innerHTML=`<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><circle cx="12" cy="12" r="7"/></svg> Stop Recording`;
+  document.getElementById('btn-stop').disabled=false;
+  document.getElementById('rec-fab').className='';
+  document.getElementById('rec-fab').classList.add('recording');
+  
+  const FPS=20;
+  S.recTimer=setInterval(()=>{
+    S.frames.push(capture());
+    S.recElapsed=(Date.now()-S.recStart)/1000;
+    document.getElementById('rec-time').textContent=fmt(S.recElapsed);
+  }, 1000/FPS);
+}
+
+function stopRec() {
+  clearInterval(S.recTimer); S.recording=false;
+  document.getElementById('rec-dot').className='rec-dot-s';
+  document.getElementById('rec-label').textContent='Idle';
+  document.getElementById('btn-record').innerHTML=`<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><circle cx="12" cy="12" r="7"/></svg> Start Recording`;
+  document.getElementById('rec-fab').className='has-recording';
+  document.getElementById('rec-fab').innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+  
+  if (S.frames.length>0) {
+    document.getElementById('btn-play').disabled=false;
+    document.getElementById('scrubber-wrap').style.display='';
+    document.getElementById('scrub-total').textContent=fmt(S.recElapsed);
+    buildKeyframes();
+    toast(`${S.frames.length} frames recorded`);
+  }
+}
+
+function fmt(s) {
+  const m=Math.floor(s/60), ss=Math.floor(s%60);
+  return `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+}
+
+function applyFrame(f1,f2,t) {
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  ['a','b'].forEach(team=>{
+    const src1=f1[team]||[], src2=f2[team]||[];
+    for (let i=0;i<src1.length&&i<S.players[team].length;i++) {
+      if (!src1[i]||!src2[i]) continue;
+      S.players[team][i].x=lerp(src1[i].x,src2[i].x,t);
+      S.players[team][i].y=lerp(src1[i].y,src2[i].y,t);
+    }
+  });
+  updateAllPos();
+}
+
+function startPlay() {
+  if (!S.frames.length) return;
+  S.playing=true; S.playFrame=0;
+  document.getElementById('rec-dot').className='rec-dot-s play';
+  document.getElementById('rec-label').textContent='Playing';
+  document.getElementById('btn-play').textContent='■ Stop Play';
+  document.getElementById('btn-stop').disabled=false;
+  
+  const scr=document.getElementById('scrubber');
+  const FPS=20;
+  S.playTimer=setInterval(()=>{
+    if (S.playFrame>=S.frames.length-1){stopPlay();return;}
+    const f=S.frames[S.playFrame];
+    const f2=S.frames[Math.min(S.playFrame+1,S.frames.length-1)];
+    applyFrame(f,f2,0);
+    S.strokes=JSON.parse(JSON.stringify(f.strokes));
+    redrawCanvas();
+    S.playFrame++;
+    scr.value=(S.playFrame/(S.frames.length-1))*100;
+    document.getElementById('scrub-cur').textContent=fmt(S.playFrame/FPS);
+  }, 1000/FPS);
+}
+
+function stopPlay() {
+  clearInterval(S.playTimer); S.playing=false;
+  document.getElementById('rec-dot').className='rec-dot-s';
+  document.getElementById('rec-label').textContent='Idle';
+  document.getElementById('btn-play').innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play Back`;
+  document.getElementById('btn-stop').disabled=true;
+}
+
+document.getElementById('scrubber').addEventListener('input',e=>{
+  if (!S.frames.length) return;
+  const idx=Math.round((e.target.value/100)*(S.frames.length-1));
+  const f=S.frames[idx];
+  if (f){applyFrame(f,f,0);S.strokes=JSON.parse(JSON.stringify(f.strokes));redrawCanvas();}
+  document.getElementById('scrub-cur').textContent=fmt(idx/20);
+});
+
+async function buildKeyframes() {
+  const strip=document.getElementById('kf-strip');
+  const cells=strip.querySelectorAll('.kf-cell');
+  for (let i=0;i<6;i++) {
+    const idx=Math.round((i/5)*(S.frames.length-1));
+    const f=S.frames[idx];
+    if (!f){cells[i].textContent='—';continue;}
+    const mc=document.createElement('canvas');
+    mc.width=200;mc.height=120;
+    const mc2=mc.getContext('2d');
+    mc2.fillStyle='#0d1f15';mc2.fillRect(0,0,200,120);
+    mc2.strokeStyle='rgba(255,255,255,0.4)';mc2.lineWidth=1;
+    mc2.strokeRect(2,2,196,116);
+    mc2.strokeRect(98,2,4,116);
+    [...f.a||[],...f.b||[]].forEach(p=>{
+      const px=(p.x/100)*200, py=(p.y/100)*120;
+      mc2.fillStyle=p.team==='a'?'#3b82f6':'#ef4444';
+      mc2.beginPath();mc2.arc(px,py,5,0,Math.PI*2);mc2.fill();
+      mc2.fillStyle='white';mc2.font='bold 6px sans-serif';mc2.textAlign='center';
+      mc2.fillText(p.num,px,py+2);
+    });
+    cells[i].innerHTML=`<img src="${mc.toDataURL()}">`;
+    cells[i].dataset.idx=idx;
+    cells[i].onclick=()=>{
+      document.getElementById('scrubber').value=(idx/(S.frames.length-1))*100;
+      applyFrame(f,f,0);S.strokes=JSON.parse(JSON.stringify(f.strokes));redrawCanvas();
+    };
+  }
+}
+
+// ══════════════════════════════════════════════
+//  EXPORT — PDF
+// ══════════════════════════════════════════════
+async function exportPDF() {
+  closeSheet();
+  showModal('Generating PDF','Building your Coach\'s Handout…');
+  await sleep(100);
+  try {
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+    const pw=297,ph=210;
+    doc.setFillColor(13,31,21); doc.rect(0,0,pw,ph,'F');
+    doc.setFillColor(17,31,23); doc.rect(0,0,pw,22,'F');
+    
+    updateModal(10,'Header…');await sleep(30);
+    
+    doc.setTextColor(0,255,136); doc.setFontSize(20); doc.setFont('helvetica','bold');
+    doc.text('FIELDTAC',8,14);
+    doc.setTextColor(232,245,238); doc.setFontSize(14);
+    doc.text((document.getElementById('play-title').value||'Tactical Play').toUpperCase(),55,14);
+    doc.setTextColor(90,122,101); doc.setFontSize(9);
+    doc.text(`${new Date().toLocaleDateString('en-ZA')}`,pw-8,14,{align:'right'});
+    
+    updateModal(25,'Capturing pitch…');await sleep(100);
+    
+    const snap=await html2canvas(pitchWrapper,{backgroundColor:'#0d1f15',scale:1.5,logging:false});
+    const img=snap.toDataURL('image/jpeg',0.9);
+    const iw=140, ih=iw*(S.pitchPx.h/S.pitchPx.w);
+    doc.addImage(img,'JPEG',8,26,iw,Math.min(ih,100));
+    doc.setDrawColor(0,200,100); doc.setLineWidth(0.3);
+    doc.rect(8,26,iw,Math.min(ih,100));
+    
+    updateModal(50,'Player index…');await sleep(30);
+    
+    // Notes
+    const notes=document.getElementById('notes-ta').value;
+    if (notes){
+      const ny=26+Math.min(ih,100)+5;
+      doc.setTextColor(0,255,136); doc.setFontSize(7); doc.setFont('helvetica','bold');
+      doc.text('TACTICAL NOTES',8,ny);
+      doc.setTextColor(200,220,210); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+      doc.text(doc.splitTextToSize(notes,iw).slice(0,5),8,ny+5);
+    }
+    
+    // Player index
+    const cx=155;
+    doc.setTextColor(0,255,136); doc.setFontSize(9); doc.setFont('helvetica','bold');
+    doc.text('TEAM A',cx,32); doc.text('TEAM B',cx+65,32);
+    const printTeam=(players,x,sy)=>{
+      players.slice(0,14).forEach((p,i)=>{
+        const y=sy+i*7;
+        doc.setFillColor(p.team==='a'?59:239,p.team==='a'?130:68,p.team==='a'?246:68);
+        doc.circle(x+2,y-1.5,2,'F');
+        doc.setTextColor(140,200,170); doc.setFontSize(7); doc.setFont('helvetica','bold');
+        doc.text(`#${p.num}`,x+6,y);
+        doc.setTextColor(200,220,210); doc.setFont('helvetica','normal');
+        doc.text(p.name,x+14,y);
+      });
+    };
+    printTeam(S.players.a,cx,40);
+    printTeam(S.players.b,cx+65,40);
+    
+    // Keyframes
+    if (S.frames.length>0) {
+      updateModal(70,'Keyframes…');await sleep(30);
+      const ky=135;
+      doc.setTextColor(0,255,136); doc.setFontSize(8); doc.setFont('helvetica','bold');
+      doc.text('PLAY SEQUENCE',8,ky-3);
+      for (let i=0;i<6;i++) {
+        const idx=Math.round((i/5)*(S.frames.length-1));
+        const f=S.frames[idx];
+        if (!f) continue;
+        const mc=document.createElement('canvas');
+        mc.width=200;mc.height=120;const mc2=mc.getContext('2d');
+        mc2.fillStyle='#0d1f15';mc2.fillRect(0,0,200,120);
+        mc2.strokeStyle='rgba(255,255,255,0.4)';mc2.lineWidth=1;mc2.strokeRect(2,2,196,116);mc2.strokeRect(98,2,4,116);
+        [...f.a||[],...f.b||[]].forEach(p=>{
+          const px=(p.x/100)*200,py=(p.y/100)*120;
+          mc2.fillStyle=p.team==='a'?'#3b82f6':'#ef4444';
+          mc2.beginPath();mc2.arc(px,py,5,0,Math.PI*2);mc2.fill();
+          mc2.fillStyle='white';mc2.font='bold 7px sans-serif';mc2.textAlign='center';mc2.fillText(p.num,px,py+2.5);
+        });
+        const kw=46,kh=kw*(120/200),kx=8+i*(kw+3);
+        doc.addImage(mc.toDataURL(),'PNG',kx,ky,kw,kh);
+        doc.setDrawColor(30,60,40);doc.setLineWidth(0.2);doc.rect(kx,ky,kw,kh);
+        doc.setTextColor(90,122,101);doc.setFontSize(6);
+        doc.text(`T+${fmt(idx/20)}`,kx+kw/2,ky+kh+3,{align:'center'});
+      }
+    }
+    
+    updateModal(95,'Finalising…');await sleep(50);
+    doc.setFillColor(10,21,16);doc.rect(0,ph-8,pw,8,'F');
+    doc.setTextColor(40,80,55);doc.setFontSize(7);
+    doc.text('FieldTac Tactical Suite — Field Hockey Analysis',pw/2,ph-2.5,{align:'center'});
+    
+    const title=document.getElementById('play-title').value||'tactical_play';
+    doc.save(`${title.replace(/\s+/g,'_')}_handout.pdf`);
+    updateModal(100,'PDF saved!');
+    await sleep(500); doneModal();
+  } catch(err) { doneModal('Error: '+err.message); }
+}
+
+// ══════════════════════════════════════════════
+//  EXPORT — VIDEO
+// ══════════════════════════════════════════════
+async function exportVideo() {
+  if (!S.frames.length) { toast('Record a play first!'); return; }
+  closeSheet();
+  showModal('Rendering Video','Encoding as WebM for sharing…');
+  try {
+    const vw=S.pitchPx.w, vh=S.pitchPx.h;
+    const rc=document.createElement('canvas');
+    rc.width=vw; rc.height=vh;
+    const rctx=rc.getContext('2d');
+    
+    let mimeType='video/webm;codecs=vp9';
+    if (!MediaRecorder.isTypeSupported(mimeType)) mimeType='video/webm';
+    const recorder=new MediaRecorder(rc.captureStream(20),{mimeType});
+    const chunks=[];
+    recorder.ondataavailable=e=>chunks.push(e.data);
+    recorder.onstop=()=>{
+      const blob=new Blob(chunks,{type:'video/webm'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url; a.download=`${(document.getElementById('play-title').value||'play').replace(/\s+/g,'_')}_play.webm`;
+      a.click(); URL.revokeObjectURL(url);
+      updateModal(100,'Video saved!'); setTimeout(doneModal,600);
+    };
+    
+    recorder.start();
+    const saved={a:S.players.a.map(p=>({...p})),b:S.players.b.map(p=>({...p}))};
+    const savedS=JSON.parse(JSON.stringify(S.strokes));
+    
+    for (let i=0;i<S.frames.length;i++) {
+      const f=S.frames[i], f2=S.frames[Math.min(i+1,S.frames.length-1)];
+      applyFrame(f,f2,0);
+      S.strokes=JSON.parse(JSON.stringify(f.strokes));
+      
+      rctx.fillStyle='#0d1f15'; rctx.fillRect(0,0,vw,vh);
+      rctx.drawImage(canvas,0,0);
+      
+      [...(f.a||[]),...(f.b||[])].forEach(p=>{
+        const px=pctToPx(p.x,p.y);
+        rctx.fillStyle=p.team==='a'?'#3b82f6':'#ef4444';
+        rctx.beginPath();rctx.arc(px.x,px.y,16,0,Math.PI*2);rctx.fill();
+        rctx.strokeStyle='rgba(255,255,255,0.6)';rctx.lineWidth=2;rctx.stroke();
+        rctx.fillStyle='white';rctx.font='bold 13px sans-serif';rctx.textAlign='center';
+        rctx.fillText(p.num,px.x,px.y+5);
+      });
+      
+      rctx.fillStyle='rgba(0,255,136,0.85)';rctx.font='bold 11px sans-serif';rctx.textAlign='left';
+      rctx.fillText(`T+${fmt(i/20)}`,8,18);
+      
+      updateModal(Math.round((i/S.frames.length)*90),`Frame ${i+1}/${S.frames.length}`);
+      await sleep(50);
+    }
+    
+    S.players.a=saved.a; S.players.b=saved.b; S.strokes=savedS;
+    updateAllPos(); redrawCanvas();
+    recorder.stop(); updateModal(95,'Finalising…');
+  } catch(err) { doneModal('Failed: '+err.message); }
+}
+
+// ── Share image ──
+async function shareImage() {
+  closeSheet();
+  try {
+    const snap=await html2canvas(pitchWrapper,{backgroundColor:'#0d1f15',scale:2,logging:false});
+    snap.toBlob(async blob=>{
+      const file=new File([blob],'fieldtac_play.png',{type:'image/png'});
+      if (navigator.share&&navigator.canShare({files:[file]})) {
+        await navigator.share({title:'FieldTac Play',files:[file]});
+      } else {
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a'); a.href=url; a.download='fieldtac_play.png'; a.click();
+        URL.revokeObjectURL(url);
+        toast('Image saved!');
+      }
+    },'image/png');
+  } catch(err) { toast('Share failed'); }
+}
+
+// ══════════════════════════════════════════════
+//  MODAL HELPERS
+// ══════════════════════════════════════════════
+function showModal(t,s) {
+  document.getElementById('exp-title').textContent=t;
+  document.getElementById('exp-sub').textContent=s;
+  document.getElementById('exp-bar').style.width='0%';
+  document.getElementById('exp-txt').textContent='Initialising…';
+  document.getElementById('exp-actions').style.display='none';
+  document.getElementById('exp-modal').classList.remove('hidden');
+}
+function updateModal(p,msg) { document.getElementById('exp-bar').style.width=p+'%'; document.getElementById('exp-txt').textContent=msg; }
+function doneModal(err) {
+  if (err) document.getElementById('exp-txt').textContent=err;
+  document.getElementById('exp-actions').style.display='flex';
+}
+document.getElementById('exp-close').addEventListener('click',()=>document.getElementById('exp-modal').classList.add('hidden'));
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+// ══════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════
+let toastT;
+function toast(msg) {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(toastT);
+  toastT=setTimeout(()=>el.classList.remove('show'),2200);
+}
+
+// ══════════════════════════════════════════════
+//  SHEET SYSTEM
+// ══════════════════════════════════════════════
+let openSheet=null;
+function closeSheet() {
+  if (openSheet) { openSheet.classList.remove('open'); openSheet=null; }
+  document.getElementById('sheet-overlay').classList.remove('open');
+}
+function openSheetEl(id) {
+  if (openSheet) { openSheet.classList.remove('open'); }
+  const el=document.getElementById(id);
+  el.classList.add('open');
+  document.getElementById('sheet-overlay').classList.add('open');
+  openSheet=el;
+}
+
+document.getElementById('sheet-overlay').addEventListener('click',closeSheet);
+document.querySelectorAll('.nav-tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    const sid=tab.dataset.sheet;
+    if (openSheet&&openSheet.id===sid) { closeSheet(); return; }
+    openSheetEl(sid);
+  });
+});
+
+// ── Swipe to dismiss sheets ──
+let sheetSwipeY=0;
+document.querySelectorAll('.sheet').forEach(sheet=>{
+  sheet.addEventListener('touchstart',e=>{sheetSwipeY=e.touches[0].clientY;},{passive:true});
+  sheet.addEventListener('touchend',e=>{
+    if (e.changedTouches[0].clientY-sheetSwipeY>60) closeSheet();
+  },{passive:true});
+});
+
+// ══════════════════════════════════════════════
+//  EVENT WIRING
+// ══════════════════════════════════════════════
+
+// Rail tools
+document.querySelectorAll('.rail-btn[data-tool]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.rail-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    S.tool=btn.dataset.tool;
+    updateCursor();
+    toast(S.tool.charAt(0).toUpperCase()+S.tool.slice(1)+' mode');
+  });
+});
+
+// Style chips
+document.querySelectorAll('.style-chip').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.style-chip').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    S.lineStyle=btn.dataset.style;
+  });
+});
+
+// Color chips
+document.querySelectorAll('.color-chip').forEach(d=>{
+  d.addEventListener('click',()=>{
+    document.querySelectorAll('.color-chip').forEach(c=>c.classList.remove('active'));
+    d.classList.add('active');
+    S.strokeColor=d.dataset.color;
+  });
+});
+
+// Stroke width
+document.getElementById('stroke-width').addEventListener('input',e=>{
+  S.strokeWidth=parseInt(e.target.value);
+  document.getElementById('stroke-val').textContent=e.target.value;
+});
+
+// View pills
+document.querySelectorAll('.view-pill').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.view-pill').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    S.view=btn.dataset.view;
+    resize();
+    closeSheet();
+    toast({full:'Full Pitch',attack:'Attack Half',defence:'Defence Half'}[S.view]);
+  });
+});
+
+// Counts
+document.querySelectorAll('.cnt-btn-s').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const team=btn.dataset.team, dir=parseInt(btn.dataset.dir);
+    S.counts[team]=Math.max(0,Math.min(16,S.counts[team]+dir));
+    document.getElementById(`count-${team}`).textContent=S.counts[team];
+    createPlayers();
+  });
+});
+
+// Clear
+document.getElementById('btn-clear').addEventListener('click',()=>{
+  S.strokes=[]; S.currentStroke=null; redrawCanvas(); toast('Canvas cleared');
+});
+
+// Undo
+document.getElementById('btn-undo').addEventListener('click',()=>{
+  if (S.strokes.length) { S.strokes.pop(); redrawCanvas(); toast('Undo'); }
+});
+
+// Reset positions
+document.getElementById('btn-reset').addEventListener('click',()=>{
+  S.players.a=[]; S.players.b=[];
+  createPlayers(); closeSheet(); toast('Positions reset');
+});
+
+// Rec buttons
+document.getElementById('btn-record').addEventListener('click',()=>{
+  if (S.recording) stopRec(); else startRec();
+});
+document.getElementById('btn-play').addEventListener('click',()=>{
+  if (S.playing) stopPlay(); else startPlay();
+});
+document.getElementById('btn-stop').addEventListener('click',()=>{
+  if (S.recording) stopRec();
+  if (S.playing) stopPlay();
+});
+
+// Rec FAB
+document.getElementById('rec-fab').addEventListener('click',()=>{
+  if (S.recording) { stopRec(); return; }
+  if (S.frames.length && !S.playing) { startPlay(); return; }
+  if (S.playing) { stopPlay(); return; }
+  startRec();
+});
+
+// Export
+document.getElementById('btn-export-pdf').addEventListener('click',exportPDF);
+document.getElementById('btn-export-video').addEventListener('click',exportVideo);
+document.getElementById('btn-share-image').addEventListener('click',shareImage);
+
+// Pitch tap deselects
+document.getElementById('pitch-wrap-outer').addEventListener('click',e=>{
+  if (e.target===document.getElementById('pitch-wrap-outer')||e.target===pitchWrapper) selectP(null);
+});
+
+// ══════════════════════════════════════════════
+//  PWA & SERVICE WORKER
+// ══════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault(); deferredPrompt=e;
+  setTimeout(()=>document.getElementById('install-bar').classList.remove('hidden'),3000);
+});
+document.getElementById('install-go').addEventListener('click',async()=>{
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const {outcome}=await deferredPrompt.userChoice;
+  deferredPrompt=null;
+  document.getElementById('install-bar').classList.add('hidden');
+});
+document.getElementById('install-dismiss').addEventListener('click',()=>{
+  document.getElementById('install-bar').classList.add('hidden');
+});
+window.addEventListener('appinstalled',()=>{
+  document.getElementById('install-bar').classList.add('hidden');
+  toast('FieldTac installed!');
+});
+
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+window.addEventListener('load',()=>{
+  buildPitch();
+  resize();
+  createPlayers();
+  updateCursor();
+  
+  if (window.ResizeObserver) {
+    new ResizeObserver(resize).observe(document.getElementById('pitch-wrap-outer'));
+  }
+  window.addEventListener('resize',resize);
+  window.addEventListener('orientationchange',()=>setTimeout(resize,200));
+  
+  setTimeout(()=>{
+    const lo=document.getElementById('loading');
+    lo.classList.add('fade');
+    setTimeout(()=>lo.remove(),600);
+  },1200);
+});
+</script>
+</body>
+</html>

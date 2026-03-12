@@ -1,3 +1,4 @@
 # hockey-tactical-board
 
-I struggled to get a tactical board for field hockey where I can export the sessions in pdf and video. I am still workingout some of the kinks on the exporting functionality of the webapp.
+I struggled to get a tactical board for field hockey where I can export the sessions in pdf and video. I thus desided to build my own webapp to serve me as a tactical board.
+I am still workingout some of the kinks on the exporting functionality of the webapp.
